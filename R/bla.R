@@ -406,12 +406,22 @@ plot_results <- function(network, data, polynomial_fn, x_limits) {
 # MAGIC
 # ========================================
 
-# Initialize or clear the directory for saving frames.
-init_frame_dir <- function(frame_dir) {
-	#if (dir.exists(frame_dir)) {
-	#	unlink(frame_dir, recursive = TRUE, force = TRUE)
-	#}
-	dir.create(frame_dir, showWarnings = FALSE)
+# Initialize the frames directory safely.
+init_frame_dir <- function(frame_dir = "frames") {
+	if (frame_dir %in% c("/", "C:/", "C:\\", "", "~")) {
+		stop("Refusing to initialize unsafe folder: ", frame_dir)
+	}
+
+	if (!dir.exists(frame_dir)) {
+		dir.create(frame_dir, showWarnings = FALSE)
+		message(sprintf("Directory '%s' created.", frame_dir))
+	} else {
+		files <- list.files(frame_dir, pattern = "\\.png$", full.names = TRUE)
+		if (length(files) > 0) {
+			file.remove(files)
+		}
+		message(sprintf("Directory '%s' cleared of existing PNG files.", frame_dir))
+	}
 }
 
 # Save a single training frame as a PNG image.
@@ -455,8 +465,24 @@ create_gif_from_frames <- function(
 	animation <- image_animate(frames, fps = fps)
 	image_write(animation, path = output_file)
 
-	message(sprintf("Animated GIF saved to '%s'", output_file))
+	message(sprintf("Animated GIF saved to '%s'.", output_file))
 }
+
+# Remove the entire frames directory and all its contents safely.
+remove_frames_directory <- function(frame_dir = "frames") {
+	if (!dir.exists(frame_dir)) {
+		message(sprintf("Directory '%s' does not exist. Nothing to remove.", frame_dir))
+		return()
+	}
+
+	if (frame_dir %in% c("/", "C:/", "C:\\", "", "~")) {
+		stop("Refusing to delete unsafe folder: ", frame_dir)
+	}
+
+	unlink(frame_dir, recursive = TRUE)
+	message(sprintf("Directory '%s' and all its contents have been removed.", frame_dir))
+}
+
 
 
 
@@ -867,7 +893,7 @@ main(
 	noise_level = 0,
 	hidden_size = 14,
 	absorbed_bias = TRUE,
-	epochs = 100,
+	epochs = 50,
 	batch_size = 256,
 	delta = 8,
 	shuffle_batches = TRUE,
