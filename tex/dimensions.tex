@@ -1,0 +1,233 @@
+\RequirePackage[l2tabu, orthodox]{nag}
+\documentclass[11pt]{article}
+
+% geometry and spacing
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[letterpaper,margin=1in]{geometry}
+
+% spacking and font
+\usepackage[parfill]{parskip}  % no indent, paragraph skip instead
+\usepackage{setspace}
+\onehalfspacing
+
+% math packages
+\usepackage{amsmath, amssymb}
+
+% table formatting
+\usepackage{booktabs}
+
+% colored text
+\usepackage{xcolor}
+
+\begin{document}
+
+The weight update equations proposed in the paper are dimensionally inconsistent; the shapes of the matrices make some subtraction and multiplication operations invalid as written.
+\begin{align*}
+	\underbrace{W_{1}}_{m_{1} \times d} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{W_{1}}_{m_{1} \times d} 
+	+ \mu_{1} \Big( 
+		\underbrace{b_{1}}_{\textcolor{red}{d \times m_{1}}} 
+		- \underbrace{A_{1}}_{\textcolor{red}{d \times d}} 
+		\underbrace{W_{1}}_{\textcolor{red}{m_{1} \times d}} 
+	\Big) \\[1.5mm]
+	\underbrace{W_{2}}_{m_{2} \times m_{1}} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{W_{2}}_{m_{2} \times m_{1}} 
+	+ \mu_{2} \Big( 
+		\underbrace{b_{2}}_{\textcolor{red}{m_{1} \times m_{2}}} 
+		- \underbrace{A_{2}}_{\textcolor{red}{m_{1} \times m_{1}}} 
+		\underbrace{W_{2}}_{\textcolor{red}{m_{2} \times m_{1}}} 
+	\Big)
+\end{align*}
+The following alternative updates are dimensionally consistent, although I am not sure about their correctness with respect to the underlying algorithm:
+\begin{align*}
+	\underbrace{W_{1}}_{m_{1} \times d} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{W_{1}}_{m_{1} \times d} 
+	+ \mu_{1} \Big( 
+		\underbrace{b_{1}^{T}}_{m_{1} \times d} 
+		- \underbrace{W_{1}}_{m_{1} \times d} 
+		\underbrace{A_{1}}_{d \times d} 
+	\Big) \\[1.5mm]
+	\underbrace{W_{2}}_{m_{2} \times m_{1}} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{W_{2}}_{m_{2} \times m_{1}} 
+	+ \mu_{2} \Big( 
+		\underbrace{b_{2}^{T}}_{m_{2} \times m_{1}} 
+		- \underbrace{W_{2}}_{m_{2} \times m_{1}} 
+		\underbrace{A_{2}}_{m_{1} \times m_{1}} 
+	\Big)
+\end{align*}
+The matrix dimensions for the neural network are summarized in the following table to provide a clear reference for the shapes of inputs, weights, biases, and layer outputs.
+\begin{center}
+	\begin{tabular}{l l p{10cm}}
+		\toprule
+		\textbf{Symbol} & \textbf{Dimensions} & \textbf{Meaning} \\
+		\midrule
+		$X$ & $\mathbb{R}^{d \times n}$ & Input data matrix, where $d$ is the number of features per sample and $n$ is the number of samples \\ \addlinespace
+		$W_{1}$ & $\mathbb{R}^{m_{1} \times d}$ & First layer weight matrix, where $m_{1}$ is the number of neurons in the first layer \\ \addlinespace
+		$\beta_{1}$ & $\mathbb{R}^{m_{1} \times 1}$ & First layer bias vector, added to each of the $n$ columns of the layer output \\ \addlinespace
+		$Z_{1}$ & $\mathbb{R}^{m_{1} \times n}$ & First layer pre-activation output ($W_{1} X + b_{1}$) \\ \addlinespace
+		$H_{1}$ & $\mathbb{R}^{m_{1} \times n}$ & First layer post-activation output after applying nonlinearity $\sigma_{1}(Z_{1})$ \\ \addlinespace
+		$W_{2}$ & $\mathbb{R}^{m_{2} \times m_{1}}$ & Second layer weight matrix, where $m_{2}$ is the number of neurons in the second layer \\ \addlinespace
+		$\beta_{2}$ & $\mathbb{R}^{m_{2} \times 1}$ & Second layer bias vector, added to each of the $n$ columns of the layer output \\ \addlinespace
+		$Z_{2}$ & $\mathbb{R}^{m_{2} \times n}$ & Second layer pre-activation output ($W_{2} H_{1} + b_{2}$) \\ \addlinespace
+		$H_{2}$ & $\mathbb{R}^{m_{2} \times n}$ & Second layer post-activation output after applying nonlinearity $\sigma_{2}(Z_{2})$ \\ \addlinespace
+		\bottomrule
+	\end{tabular}
+\end{center}
+
+\newpage
+
+The update equations for the matrices, as given in the paper, are as follows:
+\begin{align*}
+	\underbrace{A_{1}}_{d \times d} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} A_{1}}_{d \times d} 
+		+ \underbrace{\frac{1}{r+N} 
+		 \overset{d \times n}{X} 
+		 \overset{n \times d}{X^{T}}}_{d \times d} \\[1.5mm]
+	\underbrace{b_{1}}_{d \times m_{1}} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} b_{1}}_{d \times m_{1}} 
+		+ \underbrace{\frac{1}{r+N} 
+		 \overset{d \times n}{X} 
+		 \overset{n \times m_{1}}{Z_{1}^{T}}}_{d \times m_{1}} \\[1.5mm]
+	\underbrace{A_{2}}_{m_{1} \times m_{1}} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} A_{2}}_{m_{1} \times m_{1}} 
+		+ \underbrace{\frac{1}{r+N} 
+		 \overset{m_{1} \times n}{H_{1}} 
+		 \overset{n \times m_{1}}{H_{1}^{T}}}_{m_{1} \times m_{1}} \\[1.5mm]
+	\underbrace{b_{2}}_{m_{1} \times m_{2}} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} b_{2}}_{m_{1} \times m_{2}} 
+		+ \underbrace{\frac{1}{r+N} 
+		 \overset{m_{1} \times n}{H_{1}} 
+		 \overset{n \times m_{2}}{Z_{2}^{T}}}_{m_{1} \times m_{2}}
+\end{align*}
+The dimensions of the matrices used in the update equations can be seen in the next table.
+\begin{center}
+	\small
+	\begin{tabular}{l l p{10cm}}
+		\toprule
+		\textbf{Symbol} & \textbf{Dimensions} & \textbf{Meaning} \\
+		\midrule
+		$r$ & scalar & Forgetting factor used in the update equations \\ \addlinespace
+		$N$ & scalar & Number of samples in the current batch \\ \addlinespace
+		$A_{1}$ & $\mathbb{R}^{d \times d}$ & Updated matrix estimate for first-layer correlation using $X X^{T}$ \\ \addlinespace
+		$b_{1}$ & $\mathbb{R}^{d \times m_{1}}$ & Updated bias-like matrix estimate for first layer using $X Z_{1}^{T}$ \\ \addlinespace
+		$X X^{T}$ & $\mathbb{R}^{d \times d}$ & Covariance-like term used in $A_{1}$ update \\ \addlinespace
+		$X Z_{1}^{T}$ & $\mathbb{R}^{d \times m_{1}}$ & Outer-product term used in $b_{1}$ update \\ \addlinespace
+		$A_{2}$ & $\mathbb{R}^{m_{1} \times m_{1}}$ & Updated matrix estimate for second-layer correlation using $H_{1} H_{1}^{T}$ \\ \addlinespace
+		$b_{2}$ & $\mathbb{R}^{m_{1} \times m_{2}}$ & Updated bias-like matrix estimate for second layer using $H_{1} Z_{2}^{T}$ \\ \addlinespace
+		$H_{1} H_{1}^{T}$ & $\mathbb{R}^{m_{1} \times m_{1}}$ & Outer-product term used in $A_{2}$ update \\ \addlinespace
+		$H_{1} Z_{2}^{T}$ & $\mathbb{R}^{m_{1} \times m_{2}}$ & Outer-product term used in $b_{2}$ update \\ \addlinespace
+		\bottomrule
+	\end{tabular}
+\end{center}
+
+\newpage
+
+Even if the bias is absorbed into the weight matrices, the original operations remain invalid:
+\begin{align*}
+	\underbrace{\widetilde{W}_{1}}_{m_{1} \times (d+1)} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\widetilde{W}_{1}}_{m_{1} \times (d+1)} 
+	+ \mu_{1} \Big( 
+		\underbrace{\widetilde{b}_{1}}_{\textcolor{red}{(d+1) \times m_{1}}} 
+		- \underbrace{\widetilde{A}_{1}}_{\textcolor{red}{(d+1) \times (d+1)}} 
+		\underbrace{\widetilde{W}_{1}}_{\textcolor{red}{m_{1} \times (d+1)}} 
+	\Big) \\[1.5mm]
+	\underbrace{\widetilde{W}_{2}}_{m_{2} \times (m_{1}+1)} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\widetilde{W}_{2}}_{m_{2} \times (m_{1}+1)} 
+	+ \mu_{2} \Big( 
+		\underbrace{\widetilde{b}_{2}}_{\textcolor{red}{(m_{1}+1) \times m_{2}}} 
+		- \underbrace{\widetilde{A}_{2}}_{\textcolor{red}{(m_{1}+1) \times (m_{1}+1)}} 
+		\underbrace{\widetilde{W}_{2}}_{\textcolor{red}{m_{2} \times (m_{1}+1)}} 
+	\Big)
+\end{align*}
+The following updates are dimensionally consistent in the augmented form, but again, I am not certain about their correctness:
+\begin{align*}
+	\underbrace{\widetilde{W}_{1}}_{m_{1} \times (d+1)} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\widetilde{W}_{1}}_{m_{1} \times (d+1)} 
+	+ \mu_{1} \Big( 
+		\underbrace{b_{1}^{T}}_{m_{1} \times (d+1)} 
+		- \underbrace{\widetilde{W}_{1}}_{m_{1} \times (d+1)} 
+		\underbrace{A_{1}}_{(d+1) \times (d+1)} 
+	\Big) \\[1.5mm]
+	\underbrace{\widetilde{W}_{2}}_{m_{2} \times (m_{1}+1)} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\widetilde{W}_{2}}_{m_{2} \times (m_{1}+1)} 
+	+ \mu_{2} \Big( 
+		\underbrace{b_{2}^{T}}_{m_{2} \times (m_{1}+1)} 
+		- \underbrace{\widetilde{W}_{2}}_{m_{2} \times (m_{1}+1)} 
+		\underbrace{A_{2}}_{(m_{1}+1) \times (m_{1}+1)} 
+	\Big)
+\end{align*}
+The following table summarizes the new dimensions for the augmented matrices.
+\begin{center}
+	\begin{tabular}{l l p{10cm}}
+		\toprule
+		\textbf{Symbol} & \textbf{Dimensions} & \textbf{Meaning} \\
+		\midrule
+		$\widetilde{X}$ & $\mathbb{R}^{(d+1) \times n}$ & Augmented input with a row of ones for bias absorption \\ \addlinespace
+		$\widetilde{W}_{1}$ & $\mathbb{R}^{m_{1} \times (d+1)}$ & First layer augmented weight matrix including bias \\ \addlinespace
+		$\widetilde{H}_{1}$ & $\mathbb{R}^{(m_{1}+1) \times n}$ & Augmented first layer output $H_1$ with a row of ones for bias absorption in the second layer \\ \addlinespace
+		$\widetilde{W}_{2}$ & $\mathbb{R}^{m_{2} \times (m_{1}+1)}$ & Second layer augmented weight matrix including bias \\ \addlinespace
+		\bottomrule
+	\end{tabular}
+\end{center}
+The update equations for the augmented matrices then become
+\begin{align*}
+	\underbrace{\widetilde{A}_{1}}_{(d+1) \times (d+1)} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} \widetilde{A}_{1}}_{(d+1) \times (d+1)} 
+	 + \underbrace{\frac{1}{r+N} 
+	  \overset{(d+1) \times n}{\widetilde{X}} 
+	  \overset{n \times (d+1)}{\widetilde{X}^{T}}}_{(d+1) \times (d+1)} \\[1.5mm]
+	\underbrace{\widetilde{b}_{1}}_{(d+1) \times m_{1}} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} \widetilde{b}_{1}}_{(d+1) \times m_{1}} 
+	 + \underbrace{\frac{1}{r+N} 
+	  \overset{(d+1) \times n}{\widetilde{X}} 
+	  \overset{n \times m_{1}}{Z_{1}^{T}}}_{(d+1) \times m_{1}} \\[1.5mm]
+	\underbrace{\widetilde{A}_{2}}_{(m_{1}+1) \times (m_{1}+1)} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} \widetilde{A}_{2}}_{(m_{1}+1) \times (m_{1}+1)} 
+	 + \underbrace{\frac{1}{r+N} 
+	  \overset{(m_{1}+1) \times n}{\widetilde{H}_{1}} 
+	  \overset{n \times (m_{1}+1)}{\widetilde{H}_{1}^{T}}}_{(m_{1}+1) \times (m_{1}+1)} \\[1.5mm]
+	\underbrace{\widetilde{b}_{2}}_{(m_{1}+1) \times m_{2}} 
+	&\;\;\;\gets\;\;\; 
+	\underbrace{\frac{r}{r+N} \widetilde{b}_{2}}_{(m_{1}+1) \times m_{2}} 
+	 + \underbrace{\frac{1}{r+N} 
+	  \overset{(m_{1}+1) \times n}{\widetilde{H}_{1}} 
+	  \overset{n \times m_{2}}{Z_{2}^{T}}}_{(m_{1}+1) \times m_{2}}
+\end{align*}
+The following table summarizes the dimensions of the augmented matrices used in the new update equations.
+\begin{center}
+	\small
+	\begin{tabular}{l l p{10cm}}
+		\toprule
+		\textbf{Symbol} & \textbf{Dimensions} & \textbf{Meaning} \\
+		\midrule
+		$\widetilde{A}_{1}$ & $\mathbb{R}^{(d+1) \times (d+1)}$ & Augmented first-layer correlation matrix estimate using $\widetilde{X} \widetilde{X}^T$ \\ \addlinespace
+		$\widetilde{b}_{1}$ & $\mathbb{R}^{(d+1) \times m_1}$ & Augmented first-layer bias-like matrix estimate using $\widetilde{X} Z_1^T$ \\ \addlinespace
+		$\widetilde{X} \widetilde{X}^{T}$ & $\mathbb{R}^{(d+1) \times (d+1)}$ & Outer-product of augmented input for first-layer correlation \\ \addlinespace
+		$\widetilde{X} Z_1^T$ & $\mathbb{R}^{(d+1) \times m_1}$ & Outer-product of augmented input with first-layer pre-activation for bias update \\ \addlinespace
+		$\widetilde{A}_{2}$ & $\mathbb{R}^{(m_1+1) \times (m_1+1)}$ & Augmented second-layer correlation matrix estimate using $\widetilde{H}_1 \widetilde{H}_1^T$ \\ \addlinespace
+		$\widetilde{b}_{2}$ & $\mathbb{R}^{(m_1+1) \times m_2}$ & Augmented second-layer bias-like matrix estimate using $\widetilde{H}_1 Z_2^T$ \\ \addlinespace
+		$\widetilde{H}_1 \widetilde{H}_1^T$ & $\mathbb{R}^{(m_1+1) \times (m_1+1)}$ & Outer-product of augmented first-layer output for second-layer correlation \\ \addlinespace
+		$\widetilde{H}_1 Z_2^T$ & $\mathbb{R}^{(m_1+1) \times m_2}$ & Outer-product of augmented first-layer output with second-layer pre-activation for bias update \\ \addlinespace
+		\bottomrule
+	\end{tabular}
+\end{center}
+
+\end{document}
+
+
