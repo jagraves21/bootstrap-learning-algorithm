@@ -34,7 +34,8 @@ main <- function(
 		input_size = 1, hidden_size = hidden_size, output_size = 1,
 		absorbed_bias = absorbed_bias
 	)
-	
+
+	# setup gif creation parameters	
 	x_span <- x_limits[2] - x_limits[1]
 	plot_xlim = c(
 		x_limits[1] - 0.1 * x_span,
@@ -76,7 +77,7 @@ main <- function(
 	# plot results
 	plot_results(
 		network = network, data = data, polynomial_fn = polynomial,
-		x_limits = plot_xlim
+		x_limits = plot_xlim, coefficients = coefficients
 	)
 }
 

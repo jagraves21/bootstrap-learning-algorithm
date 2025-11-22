@@ -2,65 +2,6 @@
 # Ploting Utilities
 # ========================================
 
-# Plots a true polynomial function and a neural network's predictions.
-plot_results <- function(network, data, polynomial_fn, x_limits) {
-	library(ggplot2)
-	x_plot <- seq(
-		from = x_limits[1],
-		to   = x_limits[2],
-		length.out = 200
-	)
-	
-	y_true <- polynomial_fn(x_plot)
-	X_plot <- matrix(x_plot, ncol = 1)
-	y_pred <- forward_pass(network, X_plot)$output
-
-	p <- ggplot() +
-		geom_point(
-			data = data, aes(x = x, y = y),
-			color = "blue", size = 1.5, alpha = 0.25
-		) +
-		geom_line(
-			data = data.frame(x = x_plot, y = y_true),
-			aes(x = x, y = y), color = "blue", linewidth = 0.8
-		) +
-		geom_line(
-			data = data.frame(x = x_plot, y = y_pred),
-			aes(x = x, y = y), color = "red", linewidth = 0.8
-		) +
-		labs(x = "x", y = "y", title = "Polynomial Fit vs Network Prediction") +
-		theme_minimal() +
-		theme(plot.title = element_text(hjust = 0.5))
-	
-	print(p)
-}
-
-
-
-# ========================================
-# Animated GIF Utilities
-# ========================================
-
-# Initialize the frames directory safely.
-init_frame_dir <- function(frame_dir = "frames") {
-	if (frame_dir %in% c("/", "C:/", "C:\\", "", "~")) {
-		stop("Refusing to initialize unsafe folder: ", frame_dir)
-	}
-
-	if (!dir.exists(frame_dir)) {
-		dir.create(frame_dir, showWarnings = FALSE)
-		message(sprintf("Directory '%s' created.", frame_dir))
-	} else {
-		files <- list.files(frame_dir, pattern = "\\.png$", full.names = TRUE)
-		if (length(files) > 0) {
-			file.remove(files)
-		}
-		message(
-			sprintf("Directory '%s' cleared of existing PNG files.", frame_dir)
-		)
-	}
-}
-
 # Generate a human-readable string representing a polynomial from its
 # coefficients.
 poly_to_string <- function(coefficients) {
@@ -101,6 +42,73 @@ poly_to_string <- function(coefficients) {
 	}
 
 	return(paste0("f(x) = ", paste(terms, collapse = "")))
+}
+
+# Plots a true polynomial function and a neural network's predictions.
+plot_results <- function(
+	network, data, polynomial_fn, x_limits, coefficients = NULL
+) {
+	library(ggplot2)
+	x_plot <- seq(
+		from = x_limits[1],
+		to   = x_limits[2],
+		length.out = 200
+	)
+	
+	y_true <- polynomial_fn(x_plot)
+	X_plot <- matrix(x_plot, ncol = 1)
+	y_pred <- forward_pass(network, X_plot)$output
+
+	plot_title <- if (!is.null(coefficients)) {
+		poly_to_string(coefficients)
+	} else {
+		"Polynomial Fit vs Network Prediction"
+	}
+
+	p <- ggplot() +
+		geom_point(
+			data = data, aes(x = x, y = y),
+			color = "blue", size = 1.5, alpha = 0.25
+		) +
+		geom_line(
+			data = data.frame(x = x_plot, y = y_true),
+			aes(x = x, y = y), color = "blue", linewidth = 0.8
+		) +
+		geom_line(
+			data = data.frame(x = x_plot, y = y_pred),
+			aes(x = x, y = y), color = "red", linewidth = 0.8
+		) +
+		labs(x = "x", y = "y", title = plot_title) +
+		theme_minimal() +
+		theme(plot.title = element_text(hjust = 0.5, family = "mono"))
+	
+	print(p)
+}
+
+
+
+# ========================================
+# Animated GIF Utilities
+# ========================================
+
+# Initialize the frames directory safely.
+init_frame_dir <- function(frame_dir = "frames") {
+	if (frame_dir %in% c("/", "C:/", "C:\\", "", "~")) {
+		stop("Refusing to initialize unsafe folder: ", frame_dir)
+	}
+
+	if (!dir.exists(frame_dir)) {
+		dir.create(frame_dir, showWarnings = FALSE)
+		message(sprintf("Directory '%s' created.", frame_dir))
+	} else {
+		files <- list.files(frame_dir, pattern = "\\.png$", full.names = TRUE)
+		if (length(files) > 0) {
+			file.remove(files)
+		}
+		message(
+			sprintf("Directory '%s' cleared of existing PNG files.", frame_dir)
+		)
+	}
 }
 
 # Save a single training frame as a PNG image.
