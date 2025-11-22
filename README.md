@@ -1,7 +1,6 @@
 # Bootstrap Learning Algorithm (R Implementation)
 
-This repository contains an R reimplementation of the **Bootstrap Learning Algorithm** from the original paper. The goal is to reproduce and explore the results using R.  
-You can read the original paper [here](https://arxiv.org/abs/2305.03099).
+This repository contains an R reimplementation of the **Bootstrap Learning Algorithm** from the original paper. The goal is to reproduce and explore the results using R. You can read the original paper [here](https://arxiv.org/abs/2305.03099).
 
 ## Repository Structure
 
