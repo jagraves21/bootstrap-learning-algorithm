@@ -15,12 +15,9 @@ main <- function(
 	batch_size = 32,
 	delta = NULL,
 	shuffle_batches = TRUE,
-	lr = 0.01,
-	bla = TRUE,
 	seed = 42
 ) {
 	if (!is.null(seed)) set.seed(seed)
-	cat("JEFF\n")
 
 	# define the true polynomial
 	polynomial <- function(x) polynomial_function(x, coefficients)
@@ -60,21 +57,12 @@ main <- function(
 		ylim = plot_ylim
 	)
 	
-	# train the network
-	if (bla) {
-		network <- train_network_bla(
-			network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
-			num_epochs = epochs, batch_size = batch_size, delta = delta,
-			shuffle_batches = shuffle_batches, seed = NULL,
-			extra = extra
-		)
-	} else {
-		network <- train_network_gd(
-			network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
-			epochs = epochs, batch_size = batch_size,
-			shuffle_batches = shuffle_batches, lr = lr, seed = NULL
-		)
-	}
+	network <- train_network_bla(
+		network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
+		num_epochs = epochs, batch_size = batch_size, delta = delta,
+		shuffle_batches = shuffle_batches, seed = NULL,
+		extra = extra
+	)
 
 	# plot results
 	plot_results(
@@ -83,61 +71,32 @@ main <- function(
 	)
 }
 
-# common parameters
+#  parameters
 num_points <- 6000
+#coefficients = c(1, -2, 5, -1)
+coefficients = c(1, 0, -2, 0)
 x_limits <- c(-3, 3)
 noise_level <- 0
+
 hidden_size <- 14
 absorbed_bias <- TRUE
+
+epochs <- 35
 batch_size <- 256
 delta <- 8
 shuffle_batches <- TRUE
-lr <- 0.01
-bla <- TRUE
 seed <- 42
-
-#  experiments
-experiments <- list(
-	list(
-		coefficients = c(1, -2, 5, -1),
-		epochs       = 100,
-		file         = "../images/cubic_1.gif"
-	),
-	list(
-		coefficients = c(1, 0, -2, 0),
-		epochs       = 35,
-		file         = "../images/cubic_2.gif"
-	),
-	list(
-		coefficients = c(2, 1, -2, 5, -1),
-		epochs       = 35,
-		file         = "../images/quartic_1.gif"
-	),
-	list(
-		coefficients = c(4, 0, -20, 0, 0),
-		epochs       = 35,
-		file         = "../images/quartic_2.gif"
-	)
+		
+main(
+	num_points = num_points,
+	x_limits = x_limits,
+	coefficients = coefficients,
+	noise_level = noise_level,
+	hidden_size = hidden_size,
+	absorbed_bias = absorbed_bias,
+	epochs = epochs,
+	batch_size = batch_size,
+	delta = delta,
+	shuffle_batches = shuffle_batches,
+	seed = seed
 )
-
-# Run experiments
-for (params in experiments) {
-	main(
-		num_points = num_points,
-		x_limits = x_limits,
-		coefficients = params$coefficients,
-		noise_level = noise_level,
-		hidden_size = hidden_size,
-		absorbed_bias = absorbed_bias,
-		epochs = params$epochs,
-		batch_size = batch_size,
-		delta = delta,
-		shuffle_batches = shuffle_batches,
-		lr = lr,
-		bla = bla,
-		seed = seed
-	)
-
-	file.rename("result.gif", params$file)
-}
-

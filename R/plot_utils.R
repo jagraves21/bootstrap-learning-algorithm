@@ -85,6 +85,77 @@ plot_results <- function(
 	print(p)
 }
 
+save_mse_plot <- function(training_log, file, width = 800, height = 600) {
+	png(file, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	plot(
+		training_log$epoch, training_log$mse,
+		type = "l", lwd = 2,
+		xlab = "Epoch", ylab = "MSE",
+		main = "Training MSE per Epoch",
+		family = "mono"
+	)
+
+	grid(col = "gray80")
+}
+
+save_weight_change_plot <- function(training_log, file, width = 800, height = 600) {
+	png(file, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	plot_data <- training_log[!is.na(training_log$w1_mean) & !is.na(training_log$w2_mean), ]
+	epochs <- plot_data$epoch
+
+	y_range <- range(
+		plot_data$w1_min, plot_data$w1_max,
+		plot_data$w2_min, plot_data$w2_max
+	)
+
+	plot(
+		epochs, plot_data$w1_mean,
+		type = "n",
+		ylim = y_range,
+		xlab = "Epoch",
+		ylab = "Weight Change",
+		main = "Weight Change per Epoch (Mean ± Min/Max)",
+		family = "mono"
+	)
+
+	grid(col = "gray80")
+
+	polygon(
+		c(epochs, rev(epochs)),
+		c(plot_data$w1_min, rev(plot_data$w1_max)),
+		col = adjustcolor("black", alpha.f = 0.15),
+		border = NA
+	)
+
+	polygon(
+		c(epochs, rev(epochs)),
+		c(plot_data$w2_min, rev(plot_data$w2_max)),
+		col = adjustcolor("red", alpha.f = 0.15),
+		border = NA
+	)
+
+	lines(epochs, plot_data$w1_mean, lwd = 2)
+	lines(epochs, plot_data$w2_mean, col = "red", lwd = 2)
+
+	legend(
+		"topright",
+		legend = c(
+			"W1 mean", "W1 min–max",
+			"W2 mean", "W2 min–max"
+		),
+		col = c("black", adjustcolor("black", 0.15), "red", adjustcolor("red", 0.15)),
+		lwd = c(2, 10, 2, 10),
+		bty = "n",
+		pt.cex = 2
+	)
+}
+
 
 
 # ========================================
