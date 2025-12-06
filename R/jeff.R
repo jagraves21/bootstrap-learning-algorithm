@@ -45,7 +45,7 @@ main <- function(
 	y_pad <- 0.1 * (max(y_true) - min(y_true))
 	plot_ylim <- c(min(y_true) - y_pad, max(y_true) + y_pad)
 	extra <- list(
-		output_file = "result.gif",
+		plot_dir = "./training_plots",
 		frame_dir = "frames",
 		frame_width = 800,
 		frame_height = 600,
@@ -69,25 +69,28 @@ main <- function(
 		network = network, data = data, polynomial_fn = polynomial,
 		x_limits = plot_xlim, coefficients = coefficients
 	)
+
+	return(network)
 }
 
 #  parameters
 num_points <- 6000
-#coefficients = c(1, -2, 5, -1)
-coefficients = c(1, 0, -2, 0)
+coefficients = c(1, -2, 5, -1)
+#coefficients = c(1, 0, -2, 0)
 x_limits <- c(-3, 3)
 noise_level <- 0
 
 hidden_size <- 14
 absorbed_bias <- TRUE
 
-epochs <- 35
+epochs <- 100
+#epochs <- 35
 batch_size <- 256
 delta <- 8
 shuffle_batches <- TRUE
 seed <- 42
 		
-main(
+trained_network <- main(
 	num_points = num_points,
 	x_limits = x_limits,
 	coefficients = coefficients,

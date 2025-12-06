@@ -85,74 +85,334 @@ plot_results <- function(
 	print(p)
 }
 
-save_mse_plot <- function(training_log, file, width = 800, height = 600) {
-	png(file, width = width, height = height)
+
+
+# ========================================
+# Training Log Plotting Utilities
+# ========================================
+
+# Plot MSE over epochs
+save_mse_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
 	old_par <- par(no.readonly = TRUE)
 	on.exit({ par(old_par); dev.off() }, add = TRUE)
 
+	y_min <- min(training_log$mse, na.rm = TRUE)
+	y_max <- max(training_log$mse, na.rm = TRUE)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
+
 	plot(
-		training_log$epoch, training_log$mse,
+		training_log$epoch, training_log$mse, ylim = ylim,
 		type = "l", lwd = 2,
 		xlab = "Epoch", ylab = "MSE",
 		main = "Training MSE per Epoch",
 		family = "mono"
 	)
-
 	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
 }
 
-save_weight_change_plot <- function(training_log, file, width = 800, height = 600) {
-	png(file, width = width, height = height)
+# Plot weight norms
+save_weight_norm_plot <- function(
+  training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
 	old_par <- par(no.readonly = TRUE)
 	on.exit({ par(old_par); dev.off() }, add = TRUE)
 
-	plot_data <- training_log[!is.na(training_log$w1_mean) & !is.na(training_log$w2_mean), ]
-	epochs <- plot_data$epoch
-
-	y_range <- range(
-		plot_data$w1_min, plot_data$w1_max,
-		plot_data$w2_min, plot_data$w2_max
-	)
+	y_min <- min(training_log$W1_norm, training_log$W2_norm, na.rm = TRUE)
+	y_max <- max(training_log$W1_norm, training_log$W2_norm, na.rm = TRUE)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
 
 	plot(
-		epochs, plot_data$w1_mean,
-		type = "n",
-		ylim = y_range,
-		xlab = "Epoch",
-		ylab = "Weight Change",
-		main = "Weight Change per Epoch (Mean ± Min/Max)",
+		training_log$epoch, training_log$W1_norm, ylim = ylim,
+		type = "l", col = "blue", lwd = 2,
+		xlab = "Epoch", ylab = "Frobenius Norm",
+		main = "Weight Norms per Epoch",
 		family = "mono"
 	)
-
+	lines(training_log$epoch, training_log$W2_norm, col = "red", lwd = 2)
+	legend("topright", legend = c("W1", "W2"), col = c("blue", "red"), lwd = 2)
 	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+}
 
-	polygon(
-		c(epochs, rev(epochs)),
-		c(plot_data$w1_min, rev(plot_data$w1_max)),
-		col = adjustcolor("black", alpha.f = 0.15),
-		border = NA
+# Plot weight min/max changes with ribbons around mean
+save_weight_minmax_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+	
+	y_min <- min(
+		training_log$W1_min_chnage, training_log$W2_min_chnage, na.rm = TRUE
 	)
-
-	polygon(
-		c(epochs, rev(epochs)),
-		c(plot_data$w2_min, rev(plot_data$w2_max)),
-		col = adjustcolor("red", alpha.f = 0.15),
-		border = NA
+	y_max <- max(
+		training_log$W1_max_chnage, training_log$W2_max_chnage, na.rm = TRUE
 	)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
 
-	lines(epochs, plot_data$w1_mean, lwd = 2)
-	lines(epochs, plot_data$w2_mean, col = "red", lwd = 2)
+	plot(
+		training_log$epoch, training_log$W1_mean_chnage, ylim = ylim,
+		type = "n", xlab = "Epoch", ylab = "Weight Change",
+		main = "Weight Min/Max Changes per Epoch",
+		family = "mono"
+	)
+	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+
+	# W1 ribbon
+	polygon(
+		c(training_log$epoch, rev(training_log$epoch)),
+		c(training_log$W1_min_chnage, rev(training_log$W1_max_chnage)),
+		col = rgb(0, 0, 1, 0.2), border = NA
+	)
+	lines(training_log$epoch, training_log$W1_mean_chnage, col = "blue", lwd = 2)
+
+	# W2 ribbon
+	polygon(
+		c(training_log$epoch, rev(training_log$epoch)),
+		c(training_log$W2_min_chnage, rev(training_log$W2_max_chnage)),
+		col = rgb(1, 0, 0, 0.2), border = NA
+	)
+	lines(training_log$epoch, training_log$W2_mean_chnage, col = "red", lwd = 2)
 
 	legend(
 		"topright",
-		legend = c(
-			"W1 mean", "W1 min–max",
-			"W2 mean", "W2 min–max"
-		),
-		col = c("black", adjustcolor("black", 0.15), "red", adjustcolor("red", 0.15)),
-		lwd = c(2, 10, 2, 10),
-		bty = "n",
-		pt.cex = 2
+		legend = c("W1 mean ± range", "W2 mean ± range"),
+		col = c("blue", "red"), lwd = 2, bty = "n"
+	)
+}
+
+# Plot weight ranks
+save_weight_rank_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	y_min <- min(training_log$W1_rank, training_log$W2_rank, na.rm = TRUE)
+	y_max <- max(training_log$W1_rank, training_log$W2_rank, na.rm = TRUE)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
+
+	plot(
+		training_log$epoch, training_log$W1_rank, ylim = ylim,
+		type = "l", col = "blue", lwd = 2,
+		xlab = "Epoch", ylab = "Rank",
+		main = "Weight Ranks per Epoch",
+		family = "mono"
+	)
+	lines(training_log$epoch, training_log$W2_rank, col = "red", lwd = 2)
+	legend("topright", legend = c("W1", "W2"), col = c("blue", "red"), lwd = 2)
+	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+}
+
+# Plot weight condition numbers
+save_weight_condition_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	y_min <- min(training_log$W1_cond, training_log$W2_cond, na.rm = TRUE)
+	y_max <- max(training_log$W1_cond, training_log$W2_cond, na.rm = TRUE)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
+
+	plot(
+		training_log$epoch, training_log$W1_cond, ylim = ylim,
+		type = "l", col = "blue", lwd = 2,
+		xlab = "Epoch", ylab = "Condition Number",
+		main = "Weight Condition Numbers per Epoch",
+		family = "mono"
+	)
+	lines(training_log$epoch, training_log$W2_cond, col = "red", lwd = 2)
+	legend("topright", legend = c("W1", "W2"), col = c("blue", "red"), lwd = 2)
+	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+}
+
+# Plot accumulator norms
+save_acc_norm_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	y_min <- min(training_log$A1_norm, training_log$A2_norm, na.rm = TRUE)
+	y_max <- max(training_log$A1_norm, training_log$A2_norm, na.rm = TRUE)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
+
+	plot(
+		training_log$epoch, training_log$A1_norm, ylim = ylim,
+		type = "l", col = "blue", lwd = 2,
+		xlab = "Epoch", ylab = "Frobenius Norm",
+		main = "Accumulator Norms per Epoch",
+		family = "mono"
+	)
+	lines(training_log$epoch, training_log$A2_norm, col = "red", lwd = 2)
+	legend(
+		"topright", legend = c("A1_hat", "A2_hat"), col = c("blue", "red"),
+		lwd = 2
+	)
+	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+}
+
+# Plot accumulator ranks
+save_acc_rank_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	y_min <- min(training_log$A1_rank, training_log$A2_rank, na.rm = TRUE)
+	y_max <- max(training_log$A1_rank, training_log$A2_rank, na.rm = TRUE)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
+
+	plot(
+		training_log$epoch, training_log$A1_rank, ylim = ylim,
+		type = "l", col = "blue", lwd = 2,
+		xlab = "Epoch", ylab = "Rank",
+		main = "Accumulator Ranks per Epoch",
+		family = "mono"
+	)
+	lines(training_log$epoch, training_log$A2_rank, col = "red", lwd = 2)
+	legend(
+		"topright", legend = c("A1_hat", "A2_hat"), col = c("blue", "red"),
+		lwd = 2
+	)
+	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+}
+
+# Plot accumulator condition numbers
+save_acc_condition_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	y_min <- min(training_log$A1_cond, training_log$A2_cond, na.rm = TRUE)
+	y_max <- max(training_log$A1_cond, training_log$A2_cond, na.rm = TRUE)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
+
+	plot(
+		training_log$epoch, training_log$A1_cond, ylim = ylim,
+		type = "l", col = "blue", lwd = 2,
+		xlab = "Epoch", ylab = "Condition Number",
+		main = "Accumulator Condition Numbers per Epoch",
+		family = "mono"
+	)
+	lines(training_log$epoch, training_log$A2_cond, col = "red", lwd = 2)
+	legend(
+		"topright", legend = c("A1_hat", "A2_hat"), col = c("blue", "red"),
+		lwd = 2
+	)
+	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+}
+
+# Plot activation regimes
+save_activation_plot <- function(
+	training_log, filename, width = 800, height = 600, vline_epoch = NULL
+) {
+	png(filename, width = width, height = height)
+	old_par <- par(no.readonly = TRUE)
+	on.exit({ par(old_par); dev.off() }, add = TRUE)
+
+	y_min <- min(
+		training_log$strong_sat, training_log$soft_sat,
+		training_log$linear_region, na.rm = TRUE
+	)
+	y_max <- max(
+		training_log$strong_sat, training_log$soft_sat,
+		training_log$linear_region, na.rm = TRUE
+	)
+	y_pad <- (y_max - y_min) * 0.05
+	ylim <- c(y_min - y_pad, y_max + y_pad)
+
+	plot(
+		training_log$epoch, training_log$strong_sat, ylim = ylim,
+		type = "l", col = "red", lwd = 2,
+		xlab = "Epoch", ylab = "Fraction",
+		main = "Activation Regimes per Epoch",
+		family = "mono"
+	)
+	lines(training_log$epoch, training_log$soft_sat, col = "orange", lwd = 2)
+	lines(training_log$epoch, training_log$linear_region, col = "blue", lwd = 2)
+	legend(
+		"topright",
+		legend = c("Strong Saturation", "Soft Saturation", "Linear Region"),
+		col = c("red", "orange", "blue"), lwd = 2
+	)
+	grid(col = "gray80")
+	if (!is.null(vline_epoch)) abline(v = vline_epoch, lty = 2, col = "black")
+}
+
+# Plot training logs
+plot_logs <- function(
+	training_log, dir, width = 800, height = 600, vline_epoch = NULL
+) {
+	if (!dir.exists(dir)) dir.create(dir, showWarnings = FALSE)
+
+	save_mse_plot(
+		training_log, file.path(dir, "mse_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_weight_norm_plot(
+		training_log, file.path(dir, "weight_norm_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_weight_minmax_plot(
+		training_log, file.path(dir, "weight_minmax_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_weight_rank_plot(
+		training_log, file.path(dir, "weight_rank_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_weight_condition_plot(
+		training_log, file.path(dir, "weight_condition_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_acc_norm_plot(
+		training_log, file.path(dir, "acc_norm_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_acc_rank_plot(
+		training_log, file.path(dir, "acc_rank_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_acc_condition_plot(
+		training_log, file.path(dir, "acc_condition_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+	save_activation_plot(
+		training_log, file.path(dir, "activation_plot.png"),
+		width, height, vline_epoch = vline_epoch
+	)
+
+	write.csv(
+		training_log,
+		file = file.path(dir, "training_log.csv"),
+		row.names = FALSE
 	)
 }
 

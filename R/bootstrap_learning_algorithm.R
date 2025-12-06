@@ -266,6 +266,78 @@ update_weights <- function(network, r, X, Z1_hat, H_hat, y, lambda = 0) {
 	return(network)
 }
 
+pretty_print_log <- function(log_entry) {
+	cat("\n")
+	cat(sprintf(
+		"==============================  Epoch %4d  ==============================\n",
+		log_entry$epoch
+	))
+
+	cat(sprintf(
+		"MSE: %.6f\n\n",
+		log_entry$mse
+	))
+
+	# Weights W1
+	cat("Weights W1\n")
+	cat(sprintf(
+		"\t\u2016W1\u2016: %10.4f   Rank: %3d   Cond: %10.4e\n",
+		log_entry$W1_norm,
+		log_entry$W1_rank,
+		log_entry$W1_cond
+	))
+	cat(sprintf(
+		"\tChange  mean: %10.6f   min: %10.6f   max: %10.6f\n\n",
+		log_entry$W1_mean_chnage,
+		log_entry$W1_min_chnage,
+		log_entry$W1_max_chnage
+	))
+
+	# Weights W2
+	cat("Weights W2\n")
+	cat(sprintf(
+		"\t\u2016W2\u2016: %10.4f   Rank: %3d   Cond: %10.4e\n",
+		log_entry$W2_norm,
+		log_entry$W2_rank,
+		log_entry$W2_cond
+	))
+	cat(sprintf(
+		"\tChange  mean: %10.6f   min: %10.6f   max: %10.6f\n\n",
+		log_entry$W2_mean_chnage,
+		log_entry$W2_min_chnage,
+		log_entry$W2_max_chnage
+	))
+
+	# Accumulator A1
+	cat("Accumulator A1 (hat)\n")
+	cat(sprintf(
+		"\tNorm: %10.4f   Rank: %3d   Cond: %10.4e\n\n",
+		log_entry$A1_norm,
+		log_entry$A1_rank,
+		log_entry$A1_cond
+	))
+
+	# Accumulator A2
+	cat("Accumulator A2 (hat)\n")
+	cat(sprintf(
+		"\tNorm: %10.4f   Rank: %3d   Cond: %10.4e\n\n",
+		log_entry$A2_norm,
+		log_entry$A2_rank,
+		log_entry$A2_cond
+	))
+
+	# Activation Regimes
+	cat("Activation Regimes\n")
+	cat(sprintf(
+		"\tStrong: %7.4f   Soft: %7.4f   Linear: %7.4f\n",
+		log_entry$strong_sat,
+		log_entry$soft_sat,
+		log_entry$linear_region
+	))
+
+	cat("============================================================================\n")
+}
+
 train_network_bla <- function(
 	network, X, y, num_epochs = 100, batch_size = NULL, temperature = 1,
 	shuffle_batches = TRUE, delta = NULL, seed = NULL, extra = NULL
@@ -296,37 +368,37 @@ train_network_bla <- function(
 	# preallocate logging list
 	training_log_list <- vector("list", num_epochs + 1)
 	training_log_list[[1]] <- data.frame(
-		epoch         = 0,
-		mse           = mse,
-		strong_sat    = strong_sat,
-		soft_sat      = soft_sat, 
-		linear_region = linear_region,
-		cond_A1       = NA,
-		cond_A2       = NA,
-		w1_mean       = NA,
-		w1_min        = NA,
-		w1_max        = NA,
-		w2_mean       = NA,
-		w2_min        = NA,
-		w2_max        = NA
+		epoch          = 0,
+		mse            = mse,
+
+		A1_norm        = NA,
+		A1_rank        = NA,
+		A1_cond        = NA,
+
+		A2_norm        = NA,
+		A2_rank        = NA,
+		A2_cond        = NA,
+
+		W1_norm        = norm(network$W1, type="F"),
+		W1_rank        = qr(network$W1)$rank,
+		W1_cond        = tryCatch(kappa(network$W1), error = function(e) NA),
+		W1_mean_chnage = NA,
+		W1_min_chnage  = NA,
+		W1_max_chnage  = NA,
+		
+		W2_norm        = norm(network$W2, type="F"),
+		W2_rank        = qr(network$W2)$rank,
+		W2_cond        = tryCatch(kappa(network$W2), error = function(e) NA),
+		W2_mean_chnage = NA,
+		W2_min_chnage  = NA,
+		W2_max_chnage  = NA,
+		
+		strong_sat     = strong_sat,
+		soft_sat       = soft_sat, 
+		linear_region  = linear_region
 	)
 	last_log <- training_log_list[[1]]
-
-	cat(sprintf(
-		"Epoch %3d |  MSE: %.6f\n",
-		last_log$epoch, last_log$mse
-	))
-
-	cat(sprintf(
-		"\tStrong Saturation: %.4f   |  Soft Saturation: %.4f   |  Linear Region: %.4f\n",
-		last_log$strong_sat, last_log$soft_sat, last_log$linear_region
-	))
-		
-	cat(sprintf(
-		"\t%sW1%s: %.4f                | %sW2%s: %.4f\n",
-		"\u2016", "\u2016", norm(network$W1, type="F"),
-		"\u2016", "\u2016", norm(network$W2, type="F")
-	))
+	pretty_print_log(last_log)
 
 	if (!is.null(extra)) {
 		y_pred <- forward_pass(
@@ -354,8 +426,8 @@ train_network_bla <- function(
 		}
 
 		# store per-epoch weight changes
-		w1_changes <- c()
-		w2_changes <- c()
+		W1_changes <- c()
+		W2_changes <- c()
 			
 		# for each mini batch
 		for (start_idx in seq(1, num_samples, by = batch_size)) {
@@ -392,8 +464,8 @@ train_network_bla <- function(
 			dW1 <- norm(network$W1 - old_W1, type = "F")
 			dW2 <- norm(network$W2 - old_W2, type = "F")
 
-			w1_changes <- c(w1_changes, dW1)
-			w2_changes <- c(w2_changes, dW2)
+			W1_changes <- c(W1_changes, dW1)
+			W2_changes <- c(W2_changes, dW2)
 		}
 
 		if (!is.null(extra)) {
@@ -417,72 +489,52 @@ train_network_bla <- function(
 		soft_sat   <- sum(abs(fwd_full$Z1) > 2.0) / length(fwd_full$Z1)
 		linear_region <- sum(abs(fwd_full$Z1) < 0.1) / length(fwd_full$Z1)
 
-		cond_A1 <- tryCatch(kappa(network$A1_hat), error = function(e) NA)
-		cond_A2 <- tryCatch(kappa(network$A2_hat), error = function(e) NA)
-
 		training_log_list[[epoch + 1]] <- data.frame(
-			epoch         = epoch,
-			mse           = mse,
-			strong_sat    = strong_sat,
-			soft_sat      = soft_sat,
-			linear_region = linear_region,
-			cond_A1       = cond_A1 ,
-			cond_A2       = cond_A2 ,
-			w1_mean       = mean(w1_changes),
-			w1_min        = min(w1_changes),
-			w1_max        = max(w1_changes),
-			w2_mean       = mean(w2_changes),
-			w2_min        = min(w2_changes),
-			w2_max        = max(w2_changes)
+			epoch          = epoch,
+			mse            = mse,
+
+			A1_norm        = norm(network$A1_hat, type="F"),
+			A1_rank        = qr(network$A1_hat)$rank,
+			A1_cond        = tryCatch(kappa(network$A1_hat), error = function(e) NA),
+			
+			A2_norm        = norm(network$A2_hat, type="F"),
+			A2_rank        = qr(network$A2_hat)$rank,
+			A2_cond        = tryCatch(kappa(network$A2_hat), error = function(e) NA),
+
+			W1_norm        = norm(network$W1, type="F"),
+			W1_rank        = qr(network$W1)$rank,
+			W1_cond        = tryCatch(kappa(network$W1), error = function(e) NA),
+			W1_mean_chnage = mean(W1_changes),
+			W1_min_chnage  = min(W1_changes),
+			W1_max_chnage  = max(W1_changes),
+			
+			W2_norm        = norm(network$W2, type="F"),
+			W2_rank        = qr(network$W2)$rank,
+			W2_cond        = tryCatch(kappa(network$W2), error = function(e) NA),
+			W2_mean_chnage = mean(W2_changes),
+			W2_min_chnage  = min(W2_changes),
+			W2_max_chnage  = max(W2_changes),
+			
+			strong_sat     = strong_sat,
+			soft_sat       = soft_sat, 
+			linear_region  = linear_region
 		)
 		last_log <- training_log_list[[epoch + 1]]
-
-		cat("\n")
-		cat(sprintf(
-			"Epoch %3d |  MSE: %.6f\n",
-			last_log$epoch, last_log$mse
-		))
-
-		cat(sprintf(
-			"\tStrong Saturation: %.4f   |  Soft Saturation: %.4f   |  Linear Region: %.4f\n",
-			last_log$strong_sat, last_log$soft_sat, last_log$linear_region
-		))
-
-		cat(sprintf(
-			"\tCond(A1_acc): %10.4e    |  Cond(A2_acc): %10.4e\n",
-			last_log$cond_A1, last_log$cond_A2
-		))
-
-		cat(sprintf(
-			"\t%sW1%s: %.4f                |  %sW2%s: %.4f\n",
-			"\u2016", "\u2016", norm(network$W1, type="F"),
-			"\u2016", "\u2016", norm(network$W2, type="F")
-		))
-
-		cat(sprintf(
-			"\tW1 change:\tmean = %10.6f\tmin = %10.6f\tmax = %10.6f\n",
-			last_log$w1_mean, last_log$w1_min, last_log$w1_max
-		))
-
-		cat(sprintf(
-			"\tW2 change:\tmean = %10.6f\tmin = %10.6f\tmax = %10.6f\n",
-			last_log$w2_mean, last_log$w2_min, last_log$w2_max
-		))
+		pretty_print_log(last_log)
 	}
 
 	training_log <- do.call(rbind, training_log_list)
-	#cat("\nLog Summary:\n")
-	#print(training_log)
 
 	if (!is.null(extra)) {
+		plot_logs(training_log, dir = extra$plot_dir, vline_epoch = 21)
+
+		output_file = file.path(extra$plot_dir, "predictions.gif")
 		create_gif_from_frames(
 			frame_dir = extra$frame_dir,
-			output_file = extra$output_file,
+			output_file = output_file,
 			fps = extra$fps
 		)
 
-		save_mse_plot(training_log, "mse_plot.png")
-		save_weight_change_plot(training_log, "weight_change_plot.png")
 	}
 
 	return(network)
