@@ -526,17 +526,14 @@ train_network_bla <- function(
 	training_log <- do.call(rbind, training_log_list)
 
 	if (!is.null(extra)) {
-		plot_logs(training_log, dir = extra$plot_dir, vline_epoch = 21)
-
-		output_file = file.path(extra$plot_dir, "predictions.gif")
 		create_gif_from_frames(
 			frame_dir = extra$frame_dir,
-			output_file = output_file,
+			output_dir = extra$plot_dir,
 			fps = extra$fps
 		)
-
 	}
 
-	return(network)
+	results <- list(network = network, training_log = training_log)
+	return(results)
 }
 

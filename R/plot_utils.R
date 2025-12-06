@@ -368,50 +368,50 @@ save_activation_plot <- function(
 
 # Plot training logs
 plot_logs <- function(
-	training_log, dir, width = 800, height = 600, vline_epoch = NULL
+	training_log, output_dir, width = 800, height = 600, vline_epoch = NULL
 ) {
-	if (!dir.exists(dir)) dir.create(dir, showWarnings = FALSE)
+	if (!dir.exists(output_dir)) dir.create(output_dir, showWarnings = FALSE)
 
 	save_mse_plot(
-		training_log, file.path(dir, "mse_plot.png"),
+		training_log, file.path(output_dir, "mse_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_weight_norm_plot(
-		training_log, file.path(dir, "weight_norm_plot.png"),
+		training_log, file.path(output_dir, "weight_norm_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_weight_minmax_plot(
-		training_log, file.path(dir, "weight_minmax_plot.png"),
+		training_log, file.path(output_dir, "weight_minmax_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_weight_rank_plot(
-		training_log, file.path(dir, "weight_rank_plot.png"),
+		training_log, file.path(output_dir, "weight_rank_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_weight_condition_plot(
-		training_log, file.path(dir, "weight_condition_plot.png"),
+		training_log, file.path(output_dir, "weight_condition_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_acc_norm_plot(
-		training_log, file.path(dir, "acc_norm_plot.png"),
+		training_log, file.path(output_dir, "acc_norm_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_acc_rank_plot(
-		training_log, file.path(dir, "acc_rank_plot.png"),
+		training_log, file.path(output_dir, "acc_rank_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_acc_condition_plot(
-		training_log, file.path(dir, "acc_condition_plot.png"),
+		training_log, file.path(output_dir, "acc_condition_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 	save_activation_plot(
-		training_log, file.path(dir, "activation_plot.png"),
+		training_log, file.path(output_dir, "activation_plot.png"),
 		width, height, vline_epoch = vline_epoch
 	)
 
 	write.csv(
 		training_log,
-		file = file.path(dir, "training_log.csv"),
+		file = file.path(output_dir, "training_log.csv"),
 		row.names = FALSE
 	)
 }
@@ -475,9 +475,12 @@ save_training_frame <- function(
 
 # Convert saved PNG frames into an animated GIF.
 create_gif_from_frames <- function(
-	frame_dir, output_file, fps
+	frame_dir, output_dir, fps
 ) {
 	library(magick)
+
+	if (!dir.exists(output_dir)) dir.create(output_dir, showWarnings = FALSE)
+	filename <- file.path(output_dir, "predictions.gif")
 
 	frame_files <- list.files(
 		frame_dir, pattern = "frame_\\d+\\.png", full.names = TRUE
@@ -489,9 +492,9 @@ create_gif_from_frames <- function(
 	frame_files <- sort(frame_files)
 	frames <- image_read(frame_files)
 	animation <- image_animate(frames, fps = fps)
-	image_write(animation, path = output_file)
+	image_write(animation, path = filename)
 
-	message(sprintf("Animated GIF saved to '%s'.", output_file))
+	message(sprintf("Animated GIF saved to '%s'.", filename))
 }
 
 # Remove the entire frames directory and all its contents safely.

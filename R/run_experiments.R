@@ -15,12 +15,11 @@ main <- function(
 	batch_size = 32,
 	delta = NULL,
 	shuffle_batches = TRUE,
-	lr = 0.01,
-	bla = TRUE,
-	seed = 42
+	seed = 42,
+	plot_dir = "training_plots",
+	frame_dir = "frames"
 ) {
 	if (!is.null(seed)) set.seed(seed)
-	cat("JEFF\n")
 
 	# define the true polynomial
 	polynomial <- function(x) polynomial_function(x, coefficients)
@@ -48,8 +47,8 @@ main <- function(
 	y_pad <- 0.1 * (max(y_true) - min(y_true))
 	plot_ylim <- c(min(y_true) - y_pad, max(y_true) + y_pad)
 	extra <- list(
-		output_file = "result.gif",
-		frame_dir = "frames",
+		plot_dir = plot_dir,
+		frame_dir = frame_dir,
 		frame_width = 800,
 		frame_height = 600,
 		fps = 10,
@@ -60,27 +59,24 @@ main <- function(
 		ylim = plot_ylim
 	)
 	
-	# train the network
-	if (bla) {
-		network <- train_network_bla(
-			network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
-			num_epochs = epochs, batch_size = batch_size, delta = delta,
-			shuffle_batches = shuffle_batches, seed = NULL,
-			extra = extra
-		)
-	} else {
-		network <- train_network_gd(
-			network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
-			epochs = epochs, batch_size = batch_size,
-			shuffle_batches = shuffle_batches, lr = lr, seed = NULL
-		)
-	}
+	results <- train_network_bla(
+		network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
+		num_epochs = epochs, batch_size = batch_size, delta = delta,
+		shuffle_batches = shuffle_batches, seed = NULL,
+		extra = extra
+	)
+
+	network = results$network
+	training_log = results$training_log
 
 	# plot results
+	plot_logs(results$training_log, output_dir = extra$plot_dir)
 	plot_results(
-		network = network, data = data, polynomial_fn = polynomial,
+		network = results$network, data = data, polynomial_fn = polynomial,
 		x_limits = plot_xlim, coefficients = coefficients
 	)
+
+	return(results)
 }
 
 # common parameters
@@ -92,31 +88,30 @@ absorbed_bias <- TRUE
 batch_size <- 256
 delta <- 8
 shuffle_batches <- TRUE
-lr <- 0.01
-bla <- TRUE
 seed <- 42
+frame_dir <- "frames"
 
 #  experiments
 experiments <- list(
 	list(
 		coefficients = c(1, -2, 5, -1),
 		epochs       = 100,
-		file         = "../images/cubic_1.gif"
+		plot_dir     = "./training_plots/run1"
 	),
 	list(
 		coefficients = c(1, 0, -2, 0),
 		epochs       = 35,
-		file         = "../images/cubic_2.gif"
+		plot_dir     = "./training_plots/run2"
 	),
 	list(
 		coefficients = c(2, 1, -2, 5, -1),
 		epochs       = 35,
-		file         = "../images/quartic_1.gif"
+		plot_dir     = "./training_plots/run3"
 	),
 	list(
 		coefficients = c(4, 0, -20, 0, 0),
 		epochs       = 35,
-		file         = "../images/quartic_2.gif"
+		plot_dir     = "./training_plots/run4"
 	)
 )
 
@@ -133,11 +128,10 @@ for (params in experiments) {
 		batch_size = batch_size,
 		delta = delta,
 		shuffle_batches = shuffle_batches,
-		lr = lr,
-		bla = bla,
-		seed = seed
+		seed = seed,
+		plot_dir = params$plot_dir,
+		frame_dir = frame_dir
 	)
 
-	file.rename("result.gif", params$file)
 }
 

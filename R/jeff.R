@@ -15,7 +15,9 @@ main <- function(
 	batch_size = 32,
 	delta = NULL,
 	shuffle_batches = TRUE,
-	seed = 42
+	seed = 42,
+	plot_dir = "training_plots",
+	frame_dir = "frames"
 ) {
 	if (!is.null(seed)) set.seed(seed)
 
@@ -45,8 +47,8 @@ main <- function(
 	y_pad <- 0.1 * (max(y_true) - min(y_true))
 	plot_ylim <- c(min(y_true) - y_pad, max(y_true) + y_pad)
 	extra <- list(
-		plot_dir = "./training_plots",
-		frame_dir = "frames",
+		plot_dir = plot_dir,
+		frame_dir = frame_dir,
 		frame_width = 800,
 		frame_height = 600,
 		fps = 10,
@@ -57,40 +59,44 @@ main <- function(
 		ylim = plot_ylim
 	)
 	
-	network <- train_network_bla(
+	results <- train_network_bla(
 		network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
 		num_epochs = epochs, batch_size = batch_size, delta = delta,
 		shuffle_batches = shuffle_batches, seed = NULL,
 		extra = extra
 	)
 
+	network = results$network
+	training_log = results$training_log
+
 	# plot results
+	plot_logs(results$training_log, output_dir = extra$plot_dir, vline_epoch = 21)
 	plot_results(
-		network = network, data = data, polynomial_fn = polynomial,
+		network = results$network, data = data, polynomial_fn = polynomial,
 		x_limits = plot_xlim, coefficients = coefficients
 	)
 
-	return(network)
+	return(results)
 }
 
 #  parameters
 num_points <- 6000
-coefficients = c(1, -2, 5, -1)
-#coefficients = c(1, 0, -2, 0)
+#coefficients = c(1, -2, 5, -1)
+coefficients = c(1, 0, -2, 0)
 x_limits <- c(-3, 3)
 noise_level <- 0
 
 hidden_size <- 14
 absorbed_bias <- TRUE
 
-epochs <- 100
-#epochs <- 35
+#epochs <- 100
+epochs <- 35
 batch_size <- 256
 delta <- 8
 shuffle_batches <- TRUE
 seed <- 42
 		
-trained_network <- main(
+results <- main(
 	num_points = num_points,
 	x_limits = x_limits,
 	coefficients = coefficients,
@@ -103,3 +109,6 @@ trained_network <- main(
 	shuffle_batches = shuffle_batches,
 	seed = seed
 )
+
+network = results$network
+training_log = results$training_log
