@@ -3,6 +3,7 @@ source("plot_utils.R")
 source("network.R")
 source("gradient_descent.R")
 source("bootstrap_learning_algorithm.R")
+source("bla_training_logger.R")
 
 main <- function(
 	num_points = 100,
