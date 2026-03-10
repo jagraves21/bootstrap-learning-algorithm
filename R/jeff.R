@@ -1,8 +1,8 @@
 source("data_utils.R")
 source("plot_utils.R")
 source("network.R")
-source("gradient_descent.R")
 source("bootstrap_learning_algorithm.R")
+source("bla_training_logger.R")
 
 main <- function(
 	num_points = 100,
@@ -58,7 +58,7 @@ main <- function(
 		xlim = plot_xlim,
 		ylim = plot_ylim
 	)
-	
+
 	results <- train_network_bla(
 		network, matrix(data$x, ncol = 1), matrix(data$y, ncol = 1),
 		num_epochs = epochs, batch_size = batch_size, delta = delta,
@@ -70,7 +70,7 @@ main <- function(
 	training_log = results$training_log
 
 	# plot results
-	plot_logs(results$training_log, output_dir = extra$plot_dir, vline_epoch = 21)
+	plot_logs(results$training_log, output_dir = extra$plot_dir, vline_epoch = 74)
 	plot_results(
 		network = results$network, data = data, polynomial_fn = polynomial,
 		x_limits = plot_xlim, coefficients = coefficients
@@ -79,18 +79,20 @@ main <- function(
 	return(results)
 }
 
-#  parameters
+# Data Parameters
 num_points <- 6000
-#coefficients = c(1, -2, 5, -1)
-coefficients = c(1, 0, -2, 0)
+coefficients = c(1, -2, 5, -1)
+#coefficients = c(3, 1, 0, -2, 10)
 x_limits <- c(-3, 3)
 noise_level <- 0
 
+# Network Parameters
 hidden_size <- 14
 absorbed_bias <- TRUE
 
-#epochs <- 100
-epochs <- 35
+# Training Parameters
+epochs <- 100
+#epochs <- 35
 batch_size <- 256
 delta <- 8
 shuffle_batches <- TRUE
@@ -112,3 +114,4 @@ results <- main(
 
 network = results$network
 training_log = results$training_log
+

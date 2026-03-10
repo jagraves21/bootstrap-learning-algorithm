@@ -27,38 +27,6 @@ softmin <- function(x, delta = NULL, temperature = 1) {
 	}
 }
 
-# Generates a bootstrap sample of row indices from the dataset using a softmin
-# weighting based on distances between samples and predicted values.
-bootstrap_sample <- function(
-	X, y, y_hat, delta = NULL, temperature = 1, seed = NULL
-) {
-	if (!is.null(seed)) set.seed(seed)
-
-	num_samples <- nrow(X)
-	mbb <- sample(num_samples,2)
-	l <- min(mbb)
-	u <- max(mbb)
-
-	chosen_indices <- integer(u)   # preallocate storage
-	for (n in 1:u) {
-		dists <- rowSums(
-			(X[n,] - X)^2 + (y[n] - y_hat)^2
-		)
-
-		weights = softmin(dists, delta = delta, temperature = temperature)
-		if (is.null(delta)) {
-			chosen <- sample(length(weights), 1, prob = weights)
-		}
-		else {
-			chosen <- sample(weights$top_indices, 1, prob = weights$probs)
-		}
-
-		chosen_indices[n] <- chosen
-	}
-			
-	return(chosen_indices)
-}
-
 # Computes pairwise distances between (X,y) and (X,y_hat) in a loop.
 compute_pairwise_distances <- function(X, y, y_hat) {
 	num_samples <- nrow(X)
@@ -101,7 +69,7 @@ compute_pairwise_distances_vectorized <- function(X, y, y_hat) {
 
 # Generates a bootstrap sample of row indices from the dataset using a softmin
 # weighting based on distances between samples and predicted values.
-bootstrap_sample2 <- function(
+bootstrap_sample <- function(
   X, y, y_hat, delta = NULL, temperature = 1, seed = NULL
 ) {
 	if (!is.null(seed)) set.seed(seed)
@@ -266,78 +234,7 @@ update_weights <- function(network, r, X, Z1_hat, H_hat, y, lambda = 0) {
 	return(network)
 }
 
-pretty_print_log <- function(log_entry) {
-	cat("\n")
-	cat(sprintf(
-		"==============================  Epoch %4d  ==============================\n",
-		log_entry$epoch
-	))
-
-	cat(sprintf(
-		"MSE: %.6f\n\n",
-		log_entry$mse
-	))
-
-	# Weights W1
-	cat("Weights W1\n")
-	cat(sprintf(
-		"\t\u2016W1\u2016: %10.4f   Rank: %3d   Cond: %10.4e\n",
-		log_entry$W1_norm,
-		log_entry$W1_rank,
-		log_entry$W1_cond
-	))
-	cat(sprintf(
-		"\tChange  mean: %10.6f   min: %10.6f   max: %10.6f\n\n",
-		log_entry$W1_mean_chnage,
-		log_entry$W1_min_chnage,
-		log_entry$W1_max_chnage
-	))
-
-	# Weights W2
-	cat("Weights W2\n")
-	cat(sprintf(
-		"\t\u2016W2\u2016: %10.4f   Rank: %3d   Cond: %10.4e\n",
-		log_entry$W2_norm,
-		log_entry$W2_rank,
-		log_entry$W2_cond
-	))
-	cat(sprintf(
-		"\tChange  mean: %10.6f   min: %10.6f   max: %10.6f\n\n",
-		log_entry$W2_mean_chnage,
-		log_entry$W2_min_chnage,
-		log_entry$W2_max_chnage
-	))
-
-	# Accumulator A1
-	cat("Accumulator A1 (hat)\n")
-	cat(sprintf(
-		"\tNorm: %10.4f   Rank: %3d   Cond: %10.4e\n\n",
-		log_entry$A1_norm,
-		log_entry$A1_rank,
-		log_entry$A1_cond
-	))
-
-	# Accumulator A2
-	cat("Accumulator A2 (hat)\n")
-	cat(sprintf(
-		"\tNorm: %10.4f   Rank: %3d   Cond: %10.4e\n\n",
-		log_entry$A2_norm,
-		log_entry$A2_rank,
-		log_entry$A2_cond
-	))
-
-	# Activation Regimes
-	cat("Activation Regimes\n")
-	cat(sprintf(
-		"\tStrong: %7.4f   Soft: %7.4f   Linear: %7.4f\n",
-		log_entry$strong_sat,
-		log_entry$soft_sat,
-		log_entry$linear_region
-	))
-
-	cat("============================================================================\n")
-}
-
+# --- Bootstrap Learning Algorithm Main Function ---
 train_network_bla <- function(
 	network, X, y, num_epochs = 100, batch_size = NULL, temperature = 1,
 	shuffle_batches = TRUE, delta = NULL, seed = NULL, extra = NULL
@@ -358,52 +255,13 @@ train_network_bla <- function(
 	network$A2_hat <- 0
 	network$b2_hat <- 0
 
-	# full dataset mse
-	fwd_full <- forward_pass(network, X)
-	mse <- mean((fwd_full$output - y)^2)
-	strong_sat <- sum(abs(fwd_full$Z1) > 2.5) / length(fwd_full$Z1)
-	soft_sat   <- sum(abs(fwd_full$Z1) > 2.0) / length(fwd_full$Z1)
-	linear_region <- sum(abs(fwd_full$Z1) < 0.1) / length(fwd_full$Z1)
-
 	# preallocate logging list
 	training_log_list <- vector("list", num_epochs + 1)
-	training_log_list[[1]] <- data.frame(
-		epoch          = 0,
-		mse            = mse,
-
-		A1_norm        = NA,
-		A1_rank        = NA,
-		A1_cond        = NA,
-
-		A2_norm        = NA,
-		A2_rank        = NA,
-		A2_cond        = NA,
-
-		W1_norm        = norm(network$W1, type="F"),
-		W1_rank        = qr(network$W1)$rank,
-		W1_cond        = tryCatch(kappa(network$W1), error = function(e) NA),
-		W1_mean_chnage = NA,
-		W1_min_chnage  = NA,
-		W1_max_chnage  = NA,
-		
-		W2_norm        = norm(network$W2, type="F"),
-		W2_rank        = qr(network$W2)$rank,
-		W2_cond        = tryCatch(kappa(network$W2), error = function(e) NA),
-		W2_mean_chnage = NA,
-		W2_min_chnage  = NA,
-		W2_max_chnage  = NA,
-		
-		strong_sat     = strong_sat,
-		soft_sat       = soft_sat, 
-		linear_region  = linear_region
-	)
-	last_log <- training_log_list[[1]]
-	pretty_print_log(last_log)
+	training_log_list[[1]] <- init_log_row(network, X, y)
+	pretty_print_log(training_log_list[[1]])
 
 	if (!is.null(extra)) {
-		y_pred <- forward_pass(
-			network, matrix(extra$x_plot, ncol = 1)
-		)$output
+		y_pred <- forward_pass(network, matrix(extra$x_plot, ncol = 1))$output
 		save_training_frame(
 			epoch = 0, frame_dir = extra$frame_dir,
 			frame_width = extra$frame_width, frame_height = extra$frame_height,
@@ -412,8 +270,8 @@ train_network_bla <- function(
 			ylim = extra$ylim
 		)
 	}
-	
-	# for each epcoh
+
+	# --- Epoch loop ---
 	for (epoch in 1:num_epochs) {
 		# shuffle data
 		if (shuffle_batches) {
@@ -425,31 +283,26 @@ train_network_bla <- function(
 			y_shuffled <- y
 		}
 
-		# store per-epoch weight changes
 		W1_changes <- c()
 		W2_changes <- c()
-			
-		# for each mini batch
+
+		# --- Mini-batch loop ---
 		for (start_idx in seq(1, num_samples, by = batch_size)) {
-			# get the mini batch
 			end_idx <- min(start_idx + batch_size - 1, num_samples)
 			X_batch <- X_shuffled[start_idx:end_idx,, drop = FALSE]
 			y_batch <- y_shuffled[start_idx:end_idx,, drop = FALSE]
 
-			# forward step for predictions
 			fwd_batch <- forward_pass(network, X_batch)
-		
+
 			# bootstrap sampling
-			bootstrap_indices <- bootstrap_sample2(
+			bootstrap_indices <- bootstrap_sample(
 				X = X_batch, y = y_batch, y_hat = fwd_batch$output,
 				delta = delta, temperature = temperature
 			)
 
-			# save old weights
 			old_W1 <- network$W1
 			old_W2 <- network$W2
 
-			# update the weights
 			network <- update_weights(
 				network = network,
 				r = ifelse(epoch >= 1, length(X_batch), 0),
@@ -457,70 +310,39 @@ train_network_bla <- function(
 				Z1_hat = fwd_batch$Z1[bootstrap_indices,, drop = FALSE],
 				H_hat = fwd_batch$A1[bootstrap_indices,, drop = FALSE],
 				y = y_batch[1:length(bootstrap_indices),, drop = FALSE],
-				lambda = 0 #1e-4
+				lambda = 0
 			)
 
-			# compute Frobenius norms
-			dW1 <- norm(network$W1 - old_W1, type = "F")
-			dW2 <- norm(network$W2 - old_W2, type = "F")
-
-			W1_changes <- c(W1_changes, dW1)
-			W2_changes <- c(W2_changes, dW2)
+			W1_changes <- c(W1_changes, norm(network$W1 - old_W1, type = "F"))
+			W2_changes <- c(W2_changes, norm(network$W2 - old_W2, type = "F"))
 		}
 
+		# save frame if needed
 		if (!is.null(extra)) {
-			y_pred <- forward_pass(
-				network, matrix(extra$x_plot, ncol = 1)
-			)$output
+			y_pred <- forward_pass(network, matrix(extra$x_plot, ncol = 1))$output
 			save_training_frame(
 				epoch = epoch, frame_dir = extra$frame_dir,
-				frame_width = extra$frame_width,
-				frame_height = extra$frame_height,
+				frame_width = extra$frame_width, frame_height = extra$frame_height,
 				coefficients = extra$coefficients, x_plot = extra$x_plot,
 				y_true = extra$y_true, y_pred = y_pred, xlim = extra$xlim,
 				ylim = extra$ylim
 			)
 		}
-		
-		# full dataset mse
+
+		# full dataset evaluation
 		fwd_full <- forward_pass(network, X)
 		mse <- mean((fwd_full$output - y)^2)
-		strong_sat <- sum(abs(fwd_full$Z1) > 2.5) / length(fwd_full$Z1)
-		soft_sat   <- sum(abs(fwd_full$Z1) > 2.0) / length(fwd_full$Z1)
-		linear_region <- sum(abs(fwd_full$Z1) < 0.1) / length(fwd_full$Z1)
 
-		training_log_list[[epoch + 1]] <- data.frame(
-			epoch          = epoch,
-			mse            = mse,
-
-			A1_norm        = norm(network$A1_hat, type="F"),
-			A1_rank        = qr(network$A1_hat)$rank,
-			A1_cond        = tryCatch(kappa(network$A1_hat), error = function(e) NA),
-			
-			A2_norm        = norm(network$A2_hat, type="F"),
-			A2_rank        = qr(network$A2_hat)$rank,
-			A2_cond        = tryCatch(kappa(network$A2_hat), error = function(e) NA),
-
-			W1_norm        = norm(network$W1, type="F"),
-			W1_rank        = qr(network$W1)$rank,
-			W1_cond        = tryCatch(kappa(network$W1), error = function(e) NA),
-			W1_mean_chnage = mean(W1_changes),
-			W1_min_chnage  = min(W1_changes),
-			W1_max_chnage  = max(W1_changes),
-			
-			W2_norm        = norm(network$W2, type="F"),
-			W2_rank        = qr(network$W2)$rank,
-			W2_cond        = tryCatch(kappa(network$W2), error = function(e) NA),
-			W2_mean_chnage = mean(W2_changes),
-			W2_min_chnage  = min(W2_changes),
-			W2_max_chnage  = max(W2_changes),
-			
-			strong_sat     = strong_sat,
-			soft_sat       = soft_sat, 
-			linear_region  = linear_region
+		# log metrics
+		training_log_list[[epoch + 1]] <- create_log_row(
+			epoch = epoch,
+			mse = mse,
+			network = network,
+			fwd_full = fwd_full,
+			W1_changes = W1_changes,
+			W2_changes = W2_changes
 		)
-		last_log <- training_log_list[[epoch + 1]]
-		pretty_print_log(last_log)
+		pretty_print_log(training_log_list[[epoch + 1]])
 	}
 
 	training_log <- do.call(rbind, training_log_list)
@@ -533,7 +355,6 @@ train_network_bla <- function(
 		)
 	}
 
-	results <- list(network = network, training_log = training_log)
-	return(results)
+	list(network = network, training_log = training_log)
 }
 
